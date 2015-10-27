@@ -1,0 +1,259 @@
+
+% This LaTeX was auto-generated from MATLAB code.
+% To make changes, update the MATLAB code and republish this document.
+
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{color}
+
+\sloppy
+\definecolor{lightgray}{gray}{0.5}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+    
+    \begin{verbatim}
+% TESTER
+
+% TODO clean up script
+
+
+%LL default calculations
+
+hours_in_one_week = 24*7;
+hours_in_months = 24.*[31 28 31 30 31 30 31 31 30 31 30 31];
+hours_passed_this_month = 0;
+this_month = 1;
+this_week = 1;
+this_day = 1;
+
+LL_time = 0;                    % LL timer
+LL_longest_time = 0;            % worst case offline time
+LL_times_occured = 0;           % how many times we loose power
+
+LL_kWh_hourly_differences = 0;
+LL_kWh_summed_rates = 0;
+LL_kWh_rate_worstcase = 0;
+LL_kWh_diff = 0;
+positive_rate_counter = 0;
+
+LL_daily_kWh = 0;
+LL_weekly_kWh = 0;
+LL_monthly_kWh = 0;
+
+LL_default_daily = zeros(1,365);
+LL_default_monthly = zeros(1,12);
+LL_default_weekly = zeros(1,52);
+
+LL_kW_unmet = 0;
+LL_kW_unmet_worst = 0;
+LL_kW_unmet_longest = 0;
+
+time_of_longest_offline = 0;
+time_of_largest_default = 0;
+time_of_fastest_default_rate = 0;
+
+LL_total_time = length(LL(:,Batt_opt, PV_opt))-histc(LL(:,Batt_opt, PV_opt),0); %total offline time
+LL_kWh_default_year = sum(LL(:,Batt_opt, PV_opt)); % Sums the energy default of one year
+
+
+prev_element_nonzero = false;
+for i = 1:length(LL(:, Batt_opt, PV_opt))
+
+    LL_kWh = LL(i,Batt_opt,PV_opt);
+
+    if(LL_kWh > 0)
+
+
+        % rate assesments
+        if i > 1
+           LL_kWh_diff = LL_kWh-LL(i-1,Batt_opt, PV_opt);
+           if LL_kWh_diff > 0
+               if LL_kWh_diff > LL_kWh_rate_worstcase
+                   LL_kWh_rate_worstcase = LL_kWh_diff;
+                   time_of_fastest_default_rate = i;
+               end
+               LL_kWh_summed_rates = LL_kWh_summed_rates + LL_kWh_diff;
+               positive_rate_counter = positive_rate_counter +1;
+           end
+        end
+
+        % default tracking
+        LL_kW_unmet = LL_kW_unmet + LL_kWh; %Adding to amount of default this period
+        LL_time = LL_time +1;                                   %Timing the duration of this period
+
+        % daily default tracking
+        LL_daily_kWh = LL_daily_kWh +LL_kWh;
+
+        % weekly default tracking
+        LL_weekly_kWh = LL_weekly_kWh + LL_kWh;
+
+        % monthly default tracking
+        LL_monthly_kWh = LL_monthly_kWh + LL_kWh;
+
+        prev_element_nonzero = true;                            %Controlbit for checking ended period of LL
+
+    else
+
+        if prev_element_nonzero == true;                        %Checking if a period has ended
+
+            % Incrementing occations of lost power
+            LL_times_occured = LL_times_occured +1;
+
+            % Checking if longest loss of power has occured
+            if LL_time > LL_longest_time
+
+                LL_longest_time = LL_time;
+                LL_kW_unmet_longest = LL_kW_unmet;
+                time_of_longest_offline = i;
+
+            end
+            % Checking if largest amount of default has occured
+            if LL_kW_unmet > LL_kW_unmet_worst
+                LL_kW_unmet_worst = LL_kW_unmet;
+                time_of_largest_default = i;
+            end
+
+            % Resetting counters for periods
+            LL_kW_unmet = 0;
+            LL_time = 0;
+
+        end
+
+        prev_element_nonzero = false;
+
+    end
+
+    % daily tracking
+    if mod(i,24)==0
+        LL_default_daily(this_day) = LL_daily_kWh;
+        this_day = this_day +1;
+        LL_daily_kWh = 0;
+    end
+
+    % weekly tracking
+    if mod(i,hours_in_one_week)==0
+        LL_default_weekly(this_week) = LL_weekly_kWh;
+        this_week = this_week +1;
+        LL_weekly_kWh = 0;
+    end
+
+    % monthly tracking
+    hours_passed_this_month = hours_passed_this_month +1;
+    if hours_passed_this_month == hours_in_months(this_month)
+        LL_default_monthly(this_month) = LL_monthly_kWh;
+        this_month = this_month +1;
+        LL_monthly_kWh = 0;
+        hours_passed_this_month = 0;
+    end
+
+
+
+end
+
+LL_average_time = LL_total_time / LL_times_occured;
+LL_kW_longest_avg_default = LL_kW_unmet_longest / LL_longest_time;
+LL_kW_avg_default = sum(LL(:,Batt_opt, PV_opt)) / LL_total_time;
+LL_kWh_rate_avg = LL_kWh_summed_rates / positive_rate_counter;
+
+months = ['Jan: '; 'Feb: '; 'Mar: '; 'Apr: '; 'May: '; 'Jun: ';...
+     'Jul: '; 'Aug: '; 'Sep: '; 'Okt: '; 'Nov: '; 'Dec: '];
+
+disp('=========================================================')
+disp('SIMULATION DATA FOR ANALYSIS')
+disp('=========================================================')
+disp(['Optimal battery size [kWh] = ' num2str(opt_sol(4))])
+disp(['Optimal PV array size [kW] = ' num2str(opt_sol(3))])
+disp(['Budget = ' num2str(budget)])
+disp(['Accepted LLP = ' num2str(100*LLP_opt) '%'])
+disp(['Min/max battery = ' num2str(min_batt) '/' num2str(max_batt)])
+disp(['Min/max PV = ' num2str(min_PV) '/' num2str(max_PV)])
+disp(['Step PV = ' num2str(step_PV) '; Step battery = ' num2str(step_batt)]) %might slightly change optimal solution
+disp('=========================================================')
+disp(' ')
+disp('Totals:')
+disp(['Total time offline: ' num2str(LL_total_time)])
+disp(['Total occurences offline: ' num2str(LL_times_occured)])
+disp(['Total kWh default one year: ' num2str(LL_kWh_default_year)])
+disp(' ')
+disp('Averages:')
+disp(['Average time offline during LL period: ' num2str(LL_average_time)])
+disp(['Hourly average kWh defaults during one LL period: ' num2str(LL_kW_avg_default)])
+disp(['Daily average default: ' num2str(LL_kWh_default_year/365) ' [kWh]'])
+disp(['Monthly average default: ' num2str(LL_kWh_default_year/12) ' [kWh]'])
+disp(['Weekly average default: ' num2str(LL_kWh_default_year/52) ' [kWh]'])
+disp(['Average increasing kW demand during LL period: ' num2str(LL_kWh_rate_avg)])
+disp(' ')
+disp('Worst-Cases:')
+disp(['Largest kW demand during LL: ' num2str(max(LL(:,Batt_opt, PV_opt)))...
+     ' - at time: ' num2str(time_of_largest_default)])
+disp(['Longest time offline: ' num2str(LL_longest_time)...
+    ' - at time: ' num2str(time_of_longest_offline)])
+disp(['Sum kWh during longest offline: ' num2str(LL_kW_unmet_longest)])
+[Largest_daily_default, Largest_daily_default_day] = max(LL_default_daily);
+disp(['Largest daily default: ' num2str(Largest_daily_default) ' - at day: '...
+     num2str(Largest_daily_default_day)])
+[Largest_weekly_default, Largest_weekly_default_week] = max(LL_default_weekly);
+disp(['Largest weekly default: ' num2str(Largest_weekly_default) ' - at week: '...
+     num2str(Largest_weekly_default_week)])
+[Largest_monthly_default, Largest_monthly_default_month] = max(LL_default_monthly);
+disp(['Largest monthly default in ' months(Largest_monthly_default_month,:) ...
+    num2str(Largest_monthly_default)])
+disp(['Largest kWh default during LL: ' num2str(LL_kW_unmet_worst)...
+    ' - at time: ' num2str(time_of_largest_default)])
+disp(['Fastest increase in kW demand between hours: ' num2str(LL_kWh_rate_worstcase)])
+disp(' ')
+disp('Generator Worst Case Supply Requirements: ')
+disp(['Running for 8 hours: ' num2str(Largest_daily_default/8) ' [kW]'])
+disp(['Running for 12 hours: ' num2str(Largest_daily_default/12) ' [kW]'])
+disp(['Running for 16 hours: ' num2str(Largest_daily_default/16) ' [kW]'])
+disp(['Running for 24 hours: ' num2str(Largest_daily_default/24) ' [kW]'])
+\end{verbatim}
+
+        \color{lightgray} \begin{verbatim}=========================================================
+SIMULATION DATA FOR ANALYSIS
+=========================================================
+Optimal battery size [kWh] = 1200
+Optimal PV array size [kW] = 285
+Budget = 800000
+Accepted LLP = 10.4227%
+Min/max battery = 1100/1600
+Min/max PV = 250/400
+Step PV = 5; Step battery = 10
+=========================================================
+ 
+Totals:
+Total time offline: 885
+Total occurences offline: 179
+Total kWh default one year: 24176.2977
+ 
+Averages:
+Average time offline during LL period: 4.9441
+Hourly average kWh defaults during one LL period: 27.3179
+Daily average default: 66.2364 [kWh]
+Monthly average default: 2014.6915 [kWh]
+Weekly average default: 464.9288 [kWh]
+Average increasing kW demand during LL period: 13.9105
+ 
+Worst-Cases:
+Largest kW demand during LL: 133.2818 - at time: 6488
+Longest time offline: 13 - at time: 4041
+Sum kWh during longest offline: 486.9739
+Largest daily default: 526.2488 - at day: 272
+Largest weekly default: 1895.6758 - at week: 31
+Largest monthly default in Sep: 4616.6515
+Largest kWh default during LL: 526.439 - at time: 6488
+Fastest increase in kW demand between hours: 133.2818
+ 
+Generator Worst Case Supply Requirements: 
+Running for 8 hours: 65.7811 [kW]
+Running for 12 hours: 43.8541 [kW]
+Running for 16 hours: 32.8906 [kW]
+Running for 24 hours: 21.927 [kW]
+\end{verbatim} \color{black}
+    
+
+
+\end{document}
+    
