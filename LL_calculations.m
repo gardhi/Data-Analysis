@@ -6,9 +6,13 @@
 % TODOS:
 % - Change variable names so that they are more coherent.
 
+
+MA_opt_norm_bhut_jun15_20_10 = MA_opt_norm_bhut_jun15_20_10(find(MA_opt_norm_bhut_jun15_20_10(:,1)),:);
+
+
 %% Determining Run Mode from GUI
 
-% MODE 1, Battery / PV set
+% MODE 1, fixed Battery / PV set
 % 1 = using set values of PV, size and battery size
 % if no matching values are found only errormsg is displayed.
 foundValue = false;
@@ -21,13 +25,13 @@ if( LL_gui_runmode == 1)
     end
 end
 
-% MODE 2, Target NPV value
+% MODE 2, fixed target NPV value
 % 2 = using a target budget from the calculated opt value matrix
 % If no value within acceptance range is found errormsg is displayed
 if( LL_gui_runmode == 2)
     for i = 1:length(MA_opt_norm_bhut_jun15_20_10)
-        if( NPV_target - MA_opt_norm_bhut_jun15_20_10(i,2) < 600e+1 &&...
-                NPV_target - MA_opt_norm_bhut_jun15_20_10(i,2) > 0)
+        if( (NPV_target - MA_opt_norm_bhut_jun15_20_10(i,2) < 600e+1) &&...
+                (NPV_target - MA_opt_norm_bhut_jun15_20_10(i,2) > 0))
             pv_size = MA_opt_norm_bhut_jun15_20_10(i,3);
             batt_size = MA_opt_norm_bhut_jun15_20_10(i,4);
             foundValue = true;
@@ -35,12 +39,38 @@ if( LL_gui_runmode == 2)
     end
 end
 
+% IF no values match the ones in the MA_opt_sollution.....
 if(foundValue == false)
     if(LL_gui_runmode == 1)
+        disp('------------------------------')
+        disp('ERROR')
+        disp(['No matching value found for PV size = ' num2str(pv_size) ...
+            ', and battery size = ' num2str(batt_size)])
+        disp('------------------------------')
         error(['No matching value found for PV size = ' num2str(pv_size) ...
             ', and battery size = ' num2str(batt_size)])
     end
-    error(['No matching value found for NPV = ' num2str(NPV_target)])
+    % chosing max or min NPV available
+    if(NPV_target > MA_opt_norm_bhut_jun15_20_10(1,1))
+       warning(['Chosen NPV_target is out of range of optimal sollutions available,' ...
+           'choosing maximal opt sollution for calculation'])
+        pv_size = MA_opt_norm_bhut_jun15_20_10(1,3);
+        batt_size = MA_opt_norm_bhut_jun15_20_10(1,4);
+        NPV_target = MA_opt_norm_bhut_jun15_20_10(1,1);
+    elseif(NPV_target < MA_opt_norm_bhut_jun15_20_10(end,1))      
+        warning(['Chosen NPV_target is lower than optimal solutions available,' ...
+           'choosing minimal NPV sollution for calculation'])
+        pv_size = MA_opt_norm_bhut_jun15_20_10(end,3);
+        batt_size = MA_opt_norm_bhut_jun15_20_10(end,4);
+        NPV_target = MA_opt_norm_bhut_jun15_20_10(end,1);
+    else
+        disp('------------------------------')
+        disp('ERROR')
+        disp(['No matching value found for NPV = ' num2str(NPV_target)])
+        disp('Try scrutinizing the search algorithm in LL_calculations.m')
+        disp('------------------------------')
+        error(['No matching value found for NPV = ' num2str(NPV_target)])
+    end
 end
             
 disp(NPV_target)
@@ -179,8 +209,8 @@ months = ['Jan: '; 'Feb: '; 'Mar: '; 'Apr: '; 'May: '; 'Jun: ';...
 disp('=========================================================')
 disp('SIMULATION DATA FOR ANALYSIS')
 disp('=========================================================')
-disp(['Optimal battery size [kWh] = ' num2str(opt_sol(4))])
-disp(['Optimal PV array size [kW] = ' num2str(opt_sol(3))])
+disp(['Optimal battery size [kWh] = ' num2str(batt_size)])
+disp(['Optimal PV array size [kW] = ' num2str(pv_size)])
 disp(['Budget = ' num2str(budget)])
 disp(['NPV (actual cost) = ' num2str(NPV_target)])
 disp(['Remaining avaiable funds = ' num2str(budget_left)])
@@ -195,46 +225,51 @@ disp(['Total time offline: ' num2str(LL_total_time)])
 disp(['Total occurences offline: ' num2str(LL_times_occured)])
 disp(['Total kWh default one year: ' num2str(LL_kWh_default_year)])
 disp(' ')
-disp('Averages:')
-disp(['Average time offline during LL period: ' num2str(LL_average_time)])
-disp(['Hourly average kW default during one LL period: ' num2str(LL_kW_avg_default)])
-disp(['Daily average default: ' num2str(LL_kWh_default_year/365) ' [kWh]'])
-disp(['Monthly average default: ' num2str(LL_kWh_default_year/12) ' [kWh]'])
-disp(['Weekly average default: ' num2str(LL_kWh_default_year/52) ' [kWh]'])
-disp(['Average increasing kW demand during LL period: ' num2str(LL_kWh_rate_avg)])
-disp(' ')
-disp('Worst-Cases:')
-disp(['Largest kW demand during LL: ' num2str(max(LL(:,batt_i, pv_i)))...
-     ' - at time: ' num2str(time_of_largest_default)])
-disp(['Longest time offline: ' num2str(LL_longest_time)...
-    ' - at time: ' num2str(time_of_longest_offline)])
-disp(['Sum kWh during longest offline: ' num2str(LL_kW_unmet_longest)])
-[Largest_daily_default, Largest_daily_default_day] = max(LL_default_daily);
-disp(['Largest daily default: ' num2str(Largest_daily_default) ' - at day: '...
-     num2str(Largest_daily_default_day)])
-[Largest_weekly_default, Largest_weekly_default_week] = max(LL_default_weekly);
-disp(['Largest weekly default: ' num2str(Largest_weekly_default) ' - at week: '...
-     num2str(Largest_weekly_default_week)])
-[Largest_monthly_default, Largest_monthly_default_month] = max(LL_default_monthly);
-disp(['Largest monthly default in ' months(Largest_monthly_default_month,:) ...
-    num2str(Largest_monthly_default)])
-disp(['Largest kW default during LL: ' num2str(LL_kW_unmet_worst)...
-    ' - at time: ' num2str(time_of_largest_default)])
-disp(['Fastest increase in kW demand between hours: ' num2str(LL_kWh_rate_worstcase)])
-disp(' ')
-disp('Generator Worst Case Supply Requirements: ')
-disp(['Running for 8 hours: ' num2str(Largest_daily_default/8) ' [kW]'])
-disp(['Running for 12 hours: ' num2str(Largest_daily_default/12) ' [kW]'])
-disp(['Running for 16 hours: ' num2str(Largest_daily_default/16) ' [kW]'])
-disp(['Running for 24 hours: ' num2str(Largest_daily_default/24) ' [kW]'])
-disp(' ')
-disp('Generator Average Case Supply Requirements: ')
-disp(['Running for 8 hours: ' num2str(LL_kW_avg_default/8) ' [kW]'])
-disp(['Running for 12 hours: ' num2str(LL_kW_avg_default/12) ' [kW]'])
-disp(['Running for 16 hours: ' num2str(LL_kW_avg_default/16) ' [kW]'])
-disp(['Running for 24 hours: ' num2str(LL_kW_avg_default/24) ' [kW]'])
-disp(' ')
-
+if disp_avg
+    disp('Averages:')
+    disp(['Average time offline during LL period: ' num2str(LL_average_time)])
+    disp(['Hourly average kW default during one LL period: ' num2str(LL_kW_avg_default)])
+    disp(['Daily average default: ' num2str(LL_kWh_default_year/365) ' [kWh]'])
+    disp(['Monthly average default: ' num2str(LL_kWh_default_year/12) ' [kWh]'])
+    disp(['Weekly average default: ' num2str(LL_kWh_default_year/52) ' [kWh]'])
+    disp(['Average increasing kW demand during LL period: ' num2str(LL_kWh_rate_avg)])
+    disp(' ')
+end
+if disp_worst_case
+    disp('Worst-Cases:')
+    disp(['Largest kW demand during LL: ' num2str(max(LL(:,batt_i, pv_i)))...
+         ' - at time: ' num2str(time_of_largest_default)])
+    disp(['Longest time offline: ' num2str(LL_longest_time)...
+        ' - at time: ' num2str(time_of_longest_offline)])
+    disp(['Sum kWh during longest offline: ' num2str(LL_kW_unmet_longest)])
+    [Largest_daily_default, Largest_daily_default_day] = max(LL_default_daily);
+    disp(['Largest daily default: ' num2str(Largest_daily_default) ' - at day: '...
+         num2str(Largest_daily_default_day)])
+    [Largest_weekly_default, Largest_weekly_default_week] = max(LL_default_weekly);
+    disp(['Largest weekly default: ' num2str(Largest_weekly_default) ' - at week: '...
+         num2str(Largest_weekly_default_week)])
+    [Largest_monthly_default, Largest_monthly_default_month] = max(LL_default_monthly);
+    disp(['Largest monthly default in ' months(Largest_monthly_default_month,:) ...
+        num2str(Largest_monthly_default)])
+    disp(['Largest kW default during LL: ' num2str(LL_kW_unmet_worst)...
+        ' - at time: ' num2str(time_of_largest_default)])
+    disp(['Fastest increase in kW demand between hours: ' num2str(LL_kWh_rate_worstcase)])
+    disp(' ')
+end
+if disp_gen_req
+    disp('Generator Worst Case Supply Requirements: ')
+    disp(['Running for 8 hours: ' num2str(Largest_daily_default/8) ' [kW]'])
+    disp(['Running for 12 hours: ' num2str(Largest_daily_default/12) ' [kW]'])
+    disp(['Running for 16 hours: ' num2str(Largest_daily_default/16) ' [kW]'])
+    disp(['Running for 24 hours: ' num2str(Largest_daily_default/24) ' [kW]'])
+    disp(' ')
+    disp('Generator Average Case Supply Requirements: ')
+    disp(['Running for 8 hours: ' num2str(LL_kW_avg_default/8) ' [kW]'])
+    disp(['Running for 12 hours: ' num2str(LL_kW_avg_default/12) ' [kW]'])
+    disp(['Running for 16 hours: ' num2str(LL_kW_avg_default/16) ' [kW]'])
+    disp(['Running for 24 hours: ' num2str(LL_kW_avg_default/24) ' [kW]'])
+    disp(' ')
+end
 
 %% Plotting
 
@@ -255,7 +290,7 @@ if plot_SoC
     legend('Overproduction, not utilized', 'Loss of power', 'State of charge')
 end
 
-if plot_energy_balance
+if plot_power_balance
     batt_balance_pos = subplus(batt_balance);
     figure(1)
     plot(Load,'Color',[72 122 255] / 255)
@@ -313,31 +348,30 @@ end
 
 %% Biomass consumption estimates
 
-% disp('Amount needed Pr month')
-% disp('If utilizing: Sawdust')
-% efficiency_kg_to_kWh = 10;
-% kWh_per_kilo = 2.26;
-% for m = 1:12
-%     disp([months(m,:) num2str((LL_default_monthly(m)/kWh_per_kilo)*efficiency_kg_to_kWh) ' kg'])
-% end
-% disp(['Total = ' num2str(sum((LL_default_monthly./kWh_per_kilo)*efficiency_kg_to_kWh))])
-% disp(' ')
-% disp('If utilizing: Maize')
-% efficiency_kg_to_kWh = 10;
-% kWh_per_kilo = 5.1;
-% for m = 1:12
-%     disp([months(m,:) num2str((LL_default_monthly(m)/kWh_per_kilo)*efficiency_kg_to_kWh) ' kg'])
-% end
-% disp(['Total = ' num2str(sum((LL_default_monthly./kWh_per_kilo)*efficiency_kg_to_kWh))])
-% disp(' ')
-% 
-% %%
-% 
-% disp('Needed kWh/month')
-% for m = 1:12
-%     disp([months(m,:) num2str(LL_default_monthly(m)) ' kWh'])
-% end
-% disp(['Total = ' num2str(sum(LL_default_monthly))])
-% disp(' ')
+if disp_biomass_req
+    disp('Amount needed Pr month')
+    disp('If utilizing: Sawdust')
+    efficiency_kg_to_kWh = 10;
+    kWh_per_kilo = 2.26;
+    for m = 1:12
+        disp([months(m,:) num2str((LL_default_monthly(m)/kWh_per_kilo)*efficiency_kg_to_kWh) ' kg'])
+    end
+    disp(['Total = ' num2str(sum((LL_default_monthly./kWh_per_kilo)*efficiency_kg_to_kWh))])
+    disp(' ')
+    disp('If utilizing: Maize')
+    efficiency_kg_to_kWh = 10;
+    kWh_per_kilo = 5.1;
+    for m = 1:12
+        disp([months(m,:) num2str((LL_default_monthly(m)/kWh_per_kilo)*efficiency_kg_to_kWh) ' kg'])
+    end
+    disp(['Total = ' num2str(sum((LL_default_monthly./kWh_per_kilo)*efficiency_kg_to_kWh))])
+    disp(' ')
 
+    disp('Needed kWh/month')
+    for m = 1:12
+        disp([months(m,:) num2str(LL_default_monthly(m)) ' kWh'])
+    end
+    disp(['Total = ' num2str(sum(LL_default_monthly))])
+    disp(' ')
+end
 
