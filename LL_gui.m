@@ -179,8 +179,8 @@ function Run_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-run_mode = get(handles.run_mode_choice,'SelectedObject');
-run_mode = get(run_mode,'String');
+obj = get(handles.run_mode_choice,'SelectedObject');
+run_mode = get(obj,'String');
 if strcmp(run_mode,'Fix Net Present Value')
     assignin('base','NPV_target',str2num(get(handles.NPV,'String')));
     assignin('base','LL_gui_runmode',2)
